@@ -68,64 +68,11 @@ async def lifespan(app: FastAPI):
     
     try:
         if os.path.exists(model_path):
-            # Load checkpoint first to get config
-            checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+            # Use the working inference module
+            from chronos.models.inference import load_inference_model
             
-            # Extract config from checkpoint
-            if 'config' in checkpoint:
-                saved_config = checkpoint['config']
-                in_features = saved_config.model.in_features
-                hidden_dim = saved_config.model.hidden_dim
-                num_gat_layers = saved_config.model.num_gat_layers
-                num_heads = saved_config.model.num_heads
-                logger.info(f"Loaded config from checkpoint: hidden_dim={hidden_dim}, num_gat_layers={num_gat_layers}, num_heads={num_heads}")
-            else:
-                # Fallback to defaults
-                in_features = 165
-                hidden_dim = 128
-                num_gat_layers = 2
-                num_heads = 4
-            
-            # Import and create model with correct config
-            from chronos.models.chronos_net import CHRONOSNet
-            
-            model = CHRONOSNet(
-                in_features=in_features,
-                hidden_dim=hidden_dim,
-                num_gat_layers=num_gat_layers,
-                num_heads=num_heads
-            )
-            
-            # Load weights
-            if 'model_state_dict' in checkpoint:
-                state_dict = checkpoint['model_state_dict']
-            else:
-                state_dict = checkpoint
-            
-            # Handle PyG version compatibility - remap old GATConv keys
-            # Older PyG: gat_layers.X.lin.weight -> Newer PyG: gat_layers.X.lin_src.weight
-            remapped_state_dict = {}
-            for key, value in state_dict.items():
-                new_key = key
-                # Remap old single linear to new src/dst linear (use same weights for both)
-                if '.lin.weight' in key and 'gat_layers' in key:
-                    # Old format: gat_layers.X.lin.weight
-                    # New format: gat_layers.X.lin_src.weight AND gat_layers.X.lin_dst.weight
-                    base_key = key.replace('.lin.weight', '')
-                    remapped_state_dict[f'{base_key}.lin_src.weight'] = value
-                    remapped_state_dict[f'{base_key}.lin_dst.weight'] = value.clone()
-                    continue
-                remapped_state_dict[new_key] = value
-            
-            missing, unexpected = model.load_state_dict(remapped_state_dict, strict=False)
-            if missing:
-                logger.warning(f"Missing keys in state dict: {missing[:5]}...")
-            if unexpected:
-                logger.warning(f"Unexpected keys in state dict: {unexpected[:5]}...")
+            model = load_inference_model(model_path, device=device_str)
             logger.info(f"Loaded model from {model_path}")
-            
-            model = model.to(device)
-            model.eval()
             logger.info("Model loaded and ready for inference")
         else:
             logger.warning(f"Model not found at {model_path}")
@@ -133,6 +80,8 @@ async def lifespan(app: FastAPI):
         
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
+        import traceback
+        traceback.print_exc()
         model = None
     
     yield  # Application runs here
