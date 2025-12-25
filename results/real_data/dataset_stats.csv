@@ -1,0 +1,2 @@
+total_nodes,total_edges,n_features,n_labeled,n_illicit,n_licit,n_unknown,n_train,n_val,n_test,n_timesteps,f1,precision,recall,auc,best_epoch
+203769,234355,165,46564,42019,4545,157205,29894,9983,6687,49,0.9852762598664238,0.9749173926103936,0.9958576250383553,0.7239310893275063,74

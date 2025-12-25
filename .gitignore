@@ -1,0 +1,104 @@
+# CHRONOS .gitignore
+
+# ============================================================================
+# PYTHON
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# ============================================================================
+# IDEs
+# ============================================================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# OS
+# ============================================================================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# ============================================================================
+# TESTING & COVERAGE
+# ============================================================================
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.tox/
+
+# ============================================================================
+# PROJECT-SPECIFIC - DO NOT COMMIT
+# ============================================================================
+# Raw data (too large, download from Kaggle)
+data/raw/elliptic/raw/*.csv
+
+# Processed data (too large for GitHub)
+data/raw/elliptic/processed/
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Kaggle credentials
+.kaggle/
+kaggle.json
+
+# ============================================================================
+# INCLUDE THESE (override ignores)
+# ============================================================================
+# Checkpoint for dashboard
+!checkpoints/
+!checkpoints/**
+
+# Pre-computed stats for dashboard
+!results/
+!results/real_data/
+!results/real_data/*.csv
+!results/baselines/
+!results/baselines/*.csv
+
+# Architecture image
+!docs/
+!docs/images/
+!docs/images/*.png
+
+# Config files
+!chronos/config/
+!chronos/config/*.yaml

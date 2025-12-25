@@ -1,0 +1,110 @@
+MIT License
+
+Copyright (c) 2024 CHRONOS Project
+Cryptocurrency High-Risk Observation & Novelty-detection Operational System
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+THIRD-PARTY LICENSES
+
+This software includes or depends on the following third-party open source
+components, each subject to their own licenses:
+
+1. PyTorch (BSD-3-Clause License)
+   Copyright (c) 2016-present, Facebook Inc.
+   https://github.com/pytorch/pytorch
+
+2. PyTorch Geometric (MIT License)
+   Copyright (c) 2021 Matthias Fey
+   https://github.com/pyg-team/pytorch_geometric
+
+3. NetworkX (BSD-3-Clause License)
+   Copyright (c) 2004-2023, NetworkX Developers
+   https://github.com/networkx/networkx
+
+4. scikit-learn (BSD-3-Clause License)
+   Copyright (c) 2007-2023 The scikit-learn developers
+   https://github.com/scikit-learn/scikit-learn
+
+5. XGBoost (Apache License 2.0)
+   Copyright (c) 2015-2023, XGBoost Contributors
+   https://github.com/dmlc/xgboost
+
+6. SHAP (MIT License)
+   Copyright (c) 2018 Scott Lundberg
+   https://github.com/slundberg/shap
+
+================================================================================
+
+DATASET CITATION
+
+This software is designed to work with the Elliptic Bitcoin Dataset:
+
+Weber, M., Domeniconi, G., Chen, J., Weidele, D. K. I., Bellei, C.,
+Robinson, T., & Leiserson, C. E. (2019). Anti-Money Laundering in Bitcoin:
+Experimenting with Graph Convolutional Networks for Financial Forensics.
+In KDD Workshop on Anomaly Detection in Finance.
+
+Dataset available at: https://www.kaggle.com/datasets/ellipticco/elliptic-data-set
+
+The dataset is provided under its own terms and conditions. Please review and
+comply with the dataset's license when using it with this software.
+
+================================================================================
+
+REGULATORY COMPLIANCE NOTICE
+
+This software is designed to assist with Anti-Money Laundering (AML) compliance
+and is intended for use in accordance with:
+
+- EU Artificial Intelligence Act, Article 13 (Transparency Requirements)
+- Financial Action Task Force (FATF) Recommendation 16
+- Applicable local, national, and international AML regulations
+
+Users are responsible for ensuring their use of this software complies with
+all applicable laws and regulations in their jurisdiction.
+
+This software provides AI-generated risk assessments and explanations for
+informational and decision-support purposes only. Human review and judgment
+remain essential components of effective AML compliance programs.
+
+================================================================================
+
+PATENT NOTICE
+
+This software has been designed to avoid known patented methods in the
+cryptocurrency AML detection space. However, the field is rapidly evolving,
+and users should conduct their own patent searches and legal reviews to
+ensure compliance with applicable intellectual property laws.
+
+The following specific design choices were made to avoid known patents:
+
+1. Uses template-based explanation generation (not "narrative generation")
+   to avoid potential conflict with PayPal US11682018B2
+
+2. Uses Graph Attention Networks (GAT) instead of plain Graph Convolutional
+   Networks (GCN) to differentiate from CN111311416A
+
+3. Multi-scale temporal attention mechanism is novel and differs from
+   existing temporal knowledge graph approaches (US20220020026A1)
+
+Users implementing this software in commercial settings should consult with
+intellectual property counsel.

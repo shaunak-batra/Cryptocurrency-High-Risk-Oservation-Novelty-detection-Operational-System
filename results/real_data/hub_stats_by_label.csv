@@ -1,0 +1,4 @@
+label,count,avg_degree,max_degree
+illicit,73,127.21917808219177,473
+licit,9,142.11111111111111,177
+unknown,18,128.33333333333334,212

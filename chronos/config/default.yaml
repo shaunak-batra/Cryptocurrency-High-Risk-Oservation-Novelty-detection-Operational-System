@@ -1,0 +1,163 @@
+# CHRONOS-Net Default Configuration
+# Cryptocurrency High-Risk Observation & Novelty-detection Operational System
+
+# ============================================================================
+# MODEL CONFIGURATION
+# ============================================================================
+model:
+  # Input features: 166 (Elliptic) + 70 (engineered) = 236
+  in_features: 236
+
+  # Hidden dimension throughout network
+  hidden_dim: 256
+
+  # Number of GAT layers (3 = sweet spot for 3-hop neighborhood)
+  num_gat_layers: 3
+
+  # Number of attention heads per GAT layer
+  num_heads: 8
+
+  # Dropout rate
+  dropout: 0.3
+
+  # Multi-scale temporal attention window sizes (in timesteps)
+  # 1 = immediate (~2 weeks), 5 = short-term (~10 weeks),
+  # 15 = long-term (~30 weeks), 30 = very long-term (~60 weeks)
+  window_sizes: [1, 5, 15, 30]
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+training:
+  # Number of epochs
+  num_epochs: 200
+
+  # Learning rate
+  learning_rate: 0.001
+
+  # Weight decay (L2 regularization)
+  weight_decay: 0.0001
+
+  # Batch size (for mini-batch training, if implemented)
+  batch_size: 512
+
+  # Early stopping patience (epochs)
+  early_stopping_patience: 20
+
+  # Learning rate scheduler
+  lr_scheduler:
+    type: 'ReduceLROnPlateau'
+    factor: 0.5
+    patience: 10
+    min_lr: 0.00001
+
+  # Focal loss parameters (for class imbalance)
+  focal_loss:
+    alpha: 0.25  # Weight for positive class (illicit)
+    gamma: 2.0   # Focusing parameter
+
+  # Gradient clipping
+  grad_clip: 1.0
+
+  # Class weighting (computed from data if null)
+  class_weights: null
+
+# ============================================================================
+# DATA CONFIGURATION
+# ============================================================================
+data:
+  # Dataset root directory
+  root: 'data/raw/elliptic'
+
+  # Include unlabeled transactions
+  include_unknown: true
+
+  # Temporal split (timesteps)
+  # Critical: NO DATA LEAKAGE - never train on future timesteps
+  train_timesteps: [1, 34]    # Timesteps 1-34 (70%)
+  val_timesteps: [35, 42]     # Timesteps 35-42 (15%)
+  test_timesteps: [43, 49]    # Timesteps 43-49 (15%)
+
+  # Feature engineering
+  engineer_features: true
+
+  # Normalization method
+  normalization: 'standard'  # Options: 'standard', 'minmax', 'robust'
+
+  # Handle class imbalance
+  balance_method: 'focal_loss'  # Options: 'focal_loss', 'smote', 'weighted', 'none'
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+logging:
+  # TensorBoard log directory
+  log_dir: 'runs/chronos'
+
+  # Checkpoint directory
+  checkpoint_dir: 'models/checkpoints'
+
+  # Save checkpoint every N epochs
+  save_every: 10
+
+  # Log metrics every N iterations
+  log_interval: 10
+
+  # Verbose logging
+  verbose: true
+
+# ============================================================================
+# EXPLAINABILITY CONFIGURATION
+# ============================================================================
+explainability:
+  # Counterfactual generation
+  counterfactual:
+    num_counterfactuals: 3
+    learning_rate: 0.01
+    num_iterations: 100
+    lambda_prox: 0.5    # Proximity loss weight
+    lambda_div: 0.3     # Diversity loss weight
+    lambda_valid: 1.0   # Validity loss weight
+    lambda_temp: 0.2    # Temporal constraint weight
+
+  # SHAP
+  shap:
+    background_samples: 100
+    max_samples: 1000
+
+  # Attention visualization
+  attention:
+    num_top_neighbors: 10
+    visualize_layers: [0, 1, 2]  # Which GAT layers to visualize
+
+# ============================================================================
+# PERFORMANCE TARGETS
+# ============================================================================
+targets:
+  # Minimum F1 score on test set
+  min_f1: 0.88
+
+  # Minimum precision (minimize false positives)
+  min_precision: 0.85
+
+  # Minimum recall (minimize false negatives)
+  min_recall: 0.85
+
+  # Minimum AUC-ROC
+  min_auc: 0.92
+
+  # Maximum P95 inference latency (milliseconds)
+  max_p95_latency: 50
+
+  # Maximum model size (megabytes)
+  max_model_size: 100
+
+# ============================================================================
+# RANDOM SEED (for reproducibility)
+# ============================================================================
+seed: 42
+
+# ============================================================================
+# DEVICE
+# ============================================================================
+device: 'auto'  # Options: 'auto', 'cuda', 'cpu'
