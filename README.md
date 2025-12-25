@@ -115,11 +115,11 @@ SMOTE-ENN doesn't work directly on graphs. Creating synthetic nodes would requir
 
 The first attempt used a standard Graph Convolutional Network:
 
+```python
+# GCN message passing
+h_next = σ(D̃^(-1/2) @ Ã @ D̃^(-1/2) @ H @ W)
+# Where Ã = A + I, D̃ = degree matrix
 ```
-h^(l+1) = σ(D̃^(-1/2) Ã D̃^(-1/2) H^(l) W^(l))
-```
-
-Where Ã = A + I (adjacency with self-loops) and D̃ is the degree matrix.
 
 **Result**: F1 = 0.63 on test set
 
@@ -178,27 +178,27 @@ This became the foundation for the final CHRONOS-Net architecture.
 
 ### Graph Attention Networks (GAT)
 
-Unlike GCN which uses fixed aggregation weights (based on degree), GAT learns attention weights between nodes:
+Unlike GCN which uses fixed aggregation weights (based on degree), GAT learns attention weights between nodes.
 
 #### Attention Coefficient Computation
 
 For nodes i and j connected by an edge:
 
 ```
-eᵢⱼ = LeakyReLU(aᵀ [Whᵢ || Whⱼ])
+e_ij = LeakyReLU(a^T · [W·h_i || W·h_j])
 ```
 
 Where:
 
-- W ∈ ℝᵈ'ˣᵈ is a shared weight matrix
-- a ∈ ℝ²ᵈ' is the attention weight vector
+- W ∈ ℝ^(d'×d) is a shared weight matrix
+- a ∈ ℝ^(2d') is the attention weight vector
 - || denotes concatenation
 - LeakyReLU uses negative slope α = 0.2
 
 #### Normalization via Softmax
 
 ```
-αᵢⱼ = softmax_j(eᵢⱼ) = exp(eᵢⱼ) / Σₖ∈N(i) exp(eᵢₖ)
+α_ij = softmax_j(e_ij) = exp(e_ij) / Σ_k∈N(i) exp(e_ik)
 ```
 
 This ensures attention weights sum to 1 across all neighbors.
@@ -208,43 +208,46 @@ This ensures attention weights sum to 1 across all neighbors.
 To stabilize learning and capture different relationship types:
 
 ```
-hᵢ' = ‖ₖ₌₁ᴷ σ(Σⱼ∈N(i) αᵢⱼᵏ Wᵏhⱼ)
+h'_i = ||_{k=1}^K σ(Σ_{j∈N(i)} α_ij^k · W^k · h_j)
 ```
 
 Where K = 8 attention heads are concatenated (intermediate layers) or averaged (final layer).
 
 #### Why Attention Matters for AML
 
-The attention weights αᵢⱼ directly tell us which neighbors the model considers important for classification. For an illicit prediction, examining which transactions received high attention reveals the "suspicious connections" - a form of built-in explainability.
+The attention weights α_ij directly tell us which neighbors the model considers important for classification. For an illicit prediction, examining which transactions received high attention reveals the "suspicious connections" - a form of built-in explainability.
 
 ### Focal Loss
 
 Standard cross-entropy for binary classification:
 
 ```
-CE(p, y) = -y log(p) - (1-y) log(1-p)
+CE(p, y) = -y·log(p) - (1-y)·log(1-p)
 ```
 
 For highly imbalanced data, this is dominated by the majority class. Focal loss adds a modulating factor:
 
-```text`nFL(pₜ) = -αₜ (1 - pₜ)^γ log(pₜ)
+```
+FL(p_t) = -α_t · (1 - p_t)^γ · log(p_t)
 ```
 
 Where:
 
-- pₜ = p if y = 1, else (1-p) — the probability of the correct class
-- αₜ = α if y = 1, else (1-α) — class weighting (α = 0.25)
+- p_t = p if y = 1, else (1-p) — the probability of the correct class
+- α_t = α if y = 1, else (1-α) — class weighting (α = 0.25)
 - γ = 2.0 — focusing parameter
 
 #### Effect of Parameters
 
-**When γ = 0**: Focal loss = weighted cross-entropy
-**When γ > 0**: Well-classified examples (pₜ → 1) are down-weighted by (1-pₜ)^γ → 0
+| γ Value | Effect |
+|:--------|:-------|
+| γ = 0 | Focal loss = weighted cross-entropy |
+| γ > 0 | Well-classified examples get down-weighted |
 
 For example, with γ = 2:
 
-- An easy example with pₜ = 0.9 has weight (0.1)² = 0.01
-- A hard example with pₜ = 0.5 has weight (0.5)² = 0.25
+- An easy example with p_t = 0.9 has weight (0.1)² = 0.01
+- A hard example with p_t = 0.5 has weight (0.5)² = 0.25
 
 This 25× difference focuses training on the borderline cases.
 
@@ -253,51 +256,17 @@ This 25× difference focuses training on the borderline cases.
 Each transaction has a timestep t ∈ {1, 2, ..., 49}. This is encoded as:
 
 ```
-tₙₒᵣₘ = (t - 1) / 48  ∈ [0, 1]
+t_norm = (t - 1) / 48  ∈ [0, 1]
 ```
 
 Optionally, sinusoidal encoding can capture periodicity:
 
 ```
-tₛᵢₙ = sin(2π × tₙₒᵣₘ × f)
-tₒₛ = cos(2π × tₙₒᵣₘ × f)
+t_sin = sin(2π × t_norm × f)
+t_cos = cos(2π × t_norm × f)
 ```
 
 For multiple frequencies f ∈ {1, 2, 4, 8}, this creates a 9-dimensional temporal feature vector.
-
-The temporal MLP then processes this:
-
-```text`nh_temporal = MLP(tₙₒᵣₘ, tₛᵢₙ, tₒₛ)
-```
-
-Which is concatenated with graph features before the final classifier.
-
-### SHAP-Inspired Feature Importance
-
-While not using exact SHAP values (computationally prohibitive for graphs), the approach extracts feature importance from model weights:
-
-#### Input Projection Importance
-
-The input projection layer maps features to hidden space:
-
-```text`nh = W_proj · x + b_proj
-```
-
-Where W_proj ∈ ℝ²⁵⁶ˣ²³⁵. The importance of feature j is approximated as:
-
-```text`nimportance_j = mean(|W_proj[:, j]|)
-```
-
-This is analogous to SHAP's linear approximation for input features.
-
-#### Attention-Based Importance for Neighbors
-
-For a given node i, the neighbor importance comes directly from attention weights:
-
-```text`nimportance(neighbor j) = Σₖ αᵢⱼᵏ / K
-```
-
-Averaged across all attention heads.
 
 ---
 
@@ -305,8 +274,8 @@ Averaged across all attention heads.
 
 ### Complete Experiment Log
 
-| Attempt | Architecture | Loss | F1 Score | Issue |
-|---------|-------------|------|----------|-------|
+| # | Architecture | Loss | F1 | Issue |
+|:--|:-------------|:-----|:---|:------|
 | 1 | GCN (2 layers) | Cross-entropy | 0.63 | Equal neighbor weighting |
 | 2 | GCN (2 layers) | Class-weighted CE | 0.71 | Still dominated by easy examples |
 | 3 | GCN + SMOTE | Cross-entropy | Failed | Can't generate edges for synthetic nodes |
@@ -324,11 +293,11 @@ Averaged across all attention heads.
 
 Adding more GAT layers beyond 3 caused performance degradation:
 
-```
-Layer 3: F1 = 0.85
-Layer 4: F1 = 0.83
-Layer 5: F1 = 0.79
-```
+| Layers | F1 Score |
+|:-------|:---------|
+| 3 layers | 0.85 |
+| 4 layers | 0.83 |
+| 5 layers | 0.79 |
 
 **Diagnosis**: Over-smoothing. With each layer, node representations become more similar as they aggregate information from larger neighborhoods. By layer 5, all nodes converge to similar representations.
 
@@ -381,7 +350,7 @@ temporal_encoder = nn.GRU(hidden_size=64, num_layers=2, bidirectional=True)
 ### Complete Statistics
 
 | Attribute | Value | Notes |
-|-----------|-------|-------|
+|:----------|:------|:------|
 | Total Transactions | 203,769 | Each node is a Bitcoin transaction |
 | Total Edges | 234,355 | Directed edges: input → output |
 | Labeled Transactions | 46,564 | 23% of total |
@@ -397,18 +366,13 @@ temporal_encoder = nn.GRU(hidden_size=64, num_layers=2, bidirectional=True)
 
 According to the original paper:
 
-- **Features 0-93**: Local transaction features (94 features)
-  - Likely includes: transaction value, number of inputs/outputs, fee, etc.
-  - Anonymized - exact meaning unknown
-
-- **Features 94-165**: Aggregated 1-hop neighborhood features (72 features)
-  - Statistics (mean, std, etc.) of neighbor features
-  - Also anonymized
+- **Features 0-93**: Local transaction features (94 features) - Likely includes: transaction value, number of inputs/outputs, fee, etc. Anonymized.
+- **Features 94-165**: Aggregated 1-hop neighborhood features (72 features) - Statistics of neighbor features. Also anonymized.
 
 ### Temporal Split Details
 
 | Split | Timesteps | Labeled Nodes | Illicit | Licit | Illicit % |
-|-------|-----------|---------------|---------|-------|-----------|
+|:------|:----------|:--------------|:--------|:------|:----------|
 | Train | 1-34 | 29,894 | 3,257 | 26,637 | 10.9% |
 | Val | 35-42 | 9,983 | 821 | 9,162 | 8.2% |
 | Test | 43-49 | 6,687 | 467 | 6,220 | 7.0% |
@@ -418,87 +382,60 @@ Note the illicit percentage decreases from train to test. This distribution shif
 ### Graph Topology Analysis
 
 | Metric | Value |
-|--------|-------|
+|:-------|:------|
 | Average Degree | 2.30 |
 | Max Degree | 2,251 |
 | Median Degree | 2 |
-| Number of Connected Components | 3,087 |
-| Largest Component Size | 176,893 |
+| Connected Components | 3,087 |
+| Largest Component | 176,893 |
 | Graph Density | 1.13 × 10⁻⁵ |
 
-The graph is extremely sparse, with power-law degree distribution (few high-degree hubs, many low-degree nodes).
+The graph is extremely sparse, with power-law degree distribution.
 
 ---
 
 ## Architecture
 
-![CHRONOS-Net Architecture](docs/images/chronos_architecture.png)
+### CHRONOS-Net
 
-### CHRONOS-Net Detailed Specification
+<img src="docs/images/chronos_architecture.png" alt="CHRONOS Architecture" width="700"/>
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         INPUT LAYER                                 │
-│  • Node Features: x ∈ ℝⁿˣ²³⁵                                        │
-│  • Edge Index: (src, dst) pairs                                     │
-│  • Timesteps: t ∈ {1, ..., 49}ⁿ                                     │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                   INPUT PROJECTION                                  │
-│  Linear(235 → 256) + Dropout(0.3)                                   │
-│  h₀ = Dropout(W_proj · x + b_proj)                                  │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-             ┌───────────────┴───────────────┐
-             ▼                               ▼
-┌────────────────────────┐     ┌──────────────────────────────────────┐
-│   TEMPORAL BRANCH      │     │         GRAPH BRANCH (GAT)           │
-│                        │     │                                      │
-│  t_norm = (t-1)/48     │     │  Layer 1: GATConv(256 → 32×8)        │
-│  t_enc = MLP(t_norm)   │     │    H¹ = ‖ᵏ₌₁⁸ σ(Σⱼ αᵢⱼᵏ W¹ᵏhⱼ⁰)      │
-│                        │     │    + BatchNorm + ELU + Dropout(0.3)  │
-│  MLP:                  │     │                                      │
-│    Linear(1 → 64)      │     │  Layer 2: GATConv(256 → 32×8)        │
-│    ReLU                │     │    H² = ‖ᵏ₌₁⁸ σ(Σⱼ αᵢⱼᵏ W²ᵏhⱼ¹)      │
-│    Dropout(0.3)        │     │    + BatchNorm + ELU + Dropout(0.3)  │
-│    Linear(64 → 128)    │     │                                      │
-│                        │     │  Layer 3: GATConv(256 → 256, avg)    │
-│  Output: [N, 128]      │     │    H³ = (1/8)Σᵏ σ(Σⱼ αᵢⱼᵏ W³ᵏhⱼ²)    │
-│                        │     │    + BatchNorm                       │
-│                        │     │                                      │
-│                        │     │  Output: [N, 256]                    │
-└──────────┬─────────────┘     └─────────────────┬────────────────────┘
-           │                                     │
-           └─────────────────┬───────────────────┘
-                             ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                    CONCATENATION                                    │
-│  h_combined = [h_graph; h_temporal] ∈ ℝⁿˣ⁽²⁵⁶⁺¹²⁸⁾ = ℝⁿˣ³⁸⁴         │
-└────────────────────────────┬────────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        CLASSIFIER                                   │
-│  Linear(384 → 128) + ReLU + Dropout(0.5)                            │
-│  Linear(128 → 2)                                                    │
-│                                                                     │
-│  Output: logits ∈ ℝⁿˣ² → softmax → probabilities                    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### Components
+
+**1. Input Projection**
+
+- Maps 235 features to 256 dimensions
+- Dropout 0.3 for regularization
+
+**2. Graph Branch (GAT)**
+
+- 3 GAT layers with 8 attention heads each
+- BatchNorm + ELU activation + Dropout after each layer
+- Output: 256-dimensional node embeddings
+
+**3. Temporal Branch**
+
+- Simple MLP: 1 → 64 → 128
+- Processes normalized timestep
+- Output: 128-dimensional temporal embedding
+
+**4. Classifier**
+
+- Concatenates graph (256) + temporal (128) = 384 dimensions
+- Linear: 384 → 128 → 2
+- Dropout 0.5 before final layer
 
 ### Parameter Count
 
 | Component | Parameters |
-|-----------|------------|
-| Input Projection | 235 × 256 + 256 = 60,416 |
-| Temporal MLP | 1 × 64 + 64 × 128 = 8,256 |
-| GAT Layer 1 | 256 × 32 × 8 + 2 × 32 × 8 = 66,048 |
-| GAT Layer 2 | 256 × 32 × 8 + 2 × 32 × 8 = 66,048 |
-| GAT Layer 3 | 256 × 256 × 8 + 2 × 256 × 8 = 528,384 |
-| BatchNorm (×3) | 3 × (256 × 2) = 1,536 |
-| Classifier | 384 × 128 + 128 × 2 = 49,408 |
+|:----------|:-----------|
+| Input Projection | 60,416 |
+| Temporal MLP | 8,256 |
+| GAT Layer 1 | 66,048 |
+| GAT Layer 2 | 66,048 |
+| GAT Layer 3 | 528,384 |
+| BatchNorm (×3) | 1,536 |
+| Classifier | 49,408 |
 | **Total** | **~986,000** |
 
 ### Training Configuration
@@ -508,27 +445,15 @@ optimizer:
   type: Adam
   learning_rate: 0.001
   weight_decay: 0.0001
-  betas: [0.9, 0.999]
-
-scheduler:
-  type: ReduceLROnPlateau
-  factor: 0.5
-  patience: 10
-  min_lr: 0.00001
 
 loss:
   type: FocalLoss
   alpha: 0.25
   gamma: 2.0
 
-regularization:
-  dropout: 0.3 (GAT layers), 0.5 (classifier)
-  weight_decay: 0.0001
-
 early_stopping:
   patience: 30
   metric: val_f1
-  mode: max
 ```
 
 ---
@@ -537,68 +462,28 @@ early_stopping:
 
 ### Engineered Features (70 Total)
 
-All features computed from actual graph structure:
+| Category | Features | Description |
+|:---------|:---------|:------------|
+| Degree | 6 | in_degree, out_degree, total_degree, log versions, ratio |
+| Centrality | 4 | pagerank, hub_score, authority_score, log versions |
+| Neighborhood | 20 | mean/std of first 10 features for neighbors |
+| Temporal | 4 | normalized timestep, sin/cos encodings |
+| Structural | 36 | Higher-order neighbor statistics |
 
-#### Degree Features (6)
+### Top 10 Features by Importance
 
-| Feature | Formula | Intuition |
-|---------|---------|-----------|
-| in_degree | Σⱼ Aⱼᵢ | Number of incoming payments |
-| out_degree | Σⱼ Aᵢⱼ | Number of outgoing payments |
-| total_degree | in + out | Total connectivity |
-| in_degree_log | log(1 + in_degree) | Log-scaled to handle outliers |
-| out_degree_log | log(1 + out_degree) | Log-scaled |
-| degree_ratio | out / (in + 1) | High ratio = spreading funds |
-
-#### Centrality Features (4)
-
-| Feature | Formula | Intuition |
-|---------|---------|-----------|
-| pagerank | PageRank algorithm | Transaction "importance" |
-| pagerank_log | log(1 + 1000×pagerank) | Log-scaled |
-| hub_score | HITS hub score | Authorities it points to |
-| authority_score | HITS authority score | Pointed to by hubs |
-
-#### Neighborhood Features (20)
-
-For each of the first 10 original features (f₀ to f₉):
-
-| Feature | Formula | Intuition |
-|---------|---------|-----------|
-| neighbor_f{i}_mean | mean(f_i of neighbors) | Typical neighbor value |
-| neighbor_f{i}_std | std(f_i of neighbors) | Neighbor variability |
-
-#### Temporal Features (4)
-
-| Feature | Formula | Intuition |
-|---------|---------|-----------|
-| timestep_norm | (t - 1) / 48 | Normalized time position |
-| timestep_sin | sin(2π × t_norm) | Periodic encoding |
-| timestep_cos | cos(2π × t_norm) | Periodic encoding |
-| timestep_rank | rank(t) / n | Relative temporal position |
-
-#### Structural Features (36)
-
-Higher-order statistics of neighbor features for features 10-30:
-
-- Mean, std for each → 21 × 2 = 42 features (truncated to 36)
-
-### Feature Importance (from Model Weights)
-
-Top 10 most important features by input projection weight magnitude:
-
-| Rank | Feature | Importance | Interpretation |
-|------|---------|------------|----------------|
-| 1 | in_degree | 0.234 | Incoming transaction count matters most |
-| 2 | pagerank | 0.198 | Network importance |
-| 3 | out_degree | 0.187 | Outgoing transaction count |
-| 4 | timestep_norm | 0.156 | Temporal position |
-| 5 | orig_6 | 0.143 | Elliptic local feature |
-| 6 | total_degree | 0.138 | Total connectivity |
-| 7 | degree_ratio | 0.129 | Spreading vs receiving |
-| 8 | orig_14 | 0.124 | Elliptic neighbor aggregate |
-| 9 | orig_42 | 0.118 | Elliptic neighbor aggregate |
-| 10 | pagerank_log | 0.112 | Log-scaled importance |
+| Rank | Feature | Importance |
+|:-----|:--------|:-----------|
+| 1 | in_degree | 0.234 |
+| 2 | pagerank | 0.198 |
+| 3 | out_degree | 0.187 |
+| 4 | timestep_norm | 0.156 |
+| 5 | orig_6 | 0.143 |
+| 6 | total_degree | 0.138 |
+| 7 | degree_ratio | 0.129 |
+| 8 | orig_14 | 0.124 |
+| 9 | orig_42 | 0.118 |
+| 10 | pagerank_log | 0.112 |
 
 **Key Insight**: Graph structure features (degree, PageRank) are more important than the anonymized Elliptic features, validating the GNN approach.
 
@@ -608,55 +493,32 @@ Top 10 most important features by input projection weight magnitude:
 
 ### Final Test Set Performance
 
-| Metric | Value | 95% CI |
-|--------|-------|--------|
-| F1 Score | 0.9853 | [0.981, 0.989] |
-| Precision | 0.9749 | [0.968, 0.982] |
-| Recall | 0.9959 | [0.992, 0.999] |
-| AUC-ROC | 0.9891 | [0.985, 0.993] |
-| Accuracy | 0.9741 | [0.969, 0.979] |
-
-### Confusion Matrix
-
-```
-                 Predicted
-              Licit    Illicit
-Actual  Licit   85       84      (169 total)
-      Illicit   27     6491      (6518 total)
-```
-
-- **True Negatives**: 85 (licit correctly classified)
-- **False Positives**: 84 (licit misclassified as illicit)
-- **False Negatives**: 27 (illicit missed - 0.4%)
-- **True Positives**: 6491 (illicit correctly caught - 99.6%)
+| Metric | Value |
+|:-------|------:|
+| **F1 Score** | **0.9853** |
+| Precision | 0.9749 |
+| Recall | 0.9959 |
+| AUC-ROC | 0.9891 |
+| Accuracy | 0.9741 |
+| Best Epoch | 19 |
 
 ### Baseline Comparison
 
-| Model | F1 | Precision | Recall | AUC | Notes |
-|-------|-----|-----------|--------|-----|-------|
-| Random Forest | 0.9523 | 0.9412 | 0.9637 | 0.9654 | No graph structure |
-| LightGBM | 0.9799 | 0.9723 | 0.9876 | 0.9834 | Strongest tabular baseline |
-| GraphSAGE | 0.9501 | 0.9398 | 0.9607 | 0.9612 | Mean aggregation |
-| GCN | 0.9312 | 0.9187 | 0.9442 | 0.9498 | Fixed weights |
-| **CHRONOS-Net** | **0.9853** | **0.9749** | **0.9959** | **0.9891** | GAT + temporal |
+| Model | F1 | Precision | Recall | Notes |
+|:------|:---|:----------|:-------|:------|
+| LightGBM | 0.9799 | 0.9723 | 0.9876 | Strong, no graph |
+| GraphSAGE | 0.9501 | 0.9398 | 0.9607 | Mean aggregation |
+| **CHRONOS-Net** | **0.9853** | **0.9749** | **0.9959** | GAT + temporal |
 
-**Improvement over LightGBM**: +0.54% F1, +0.83% Recall
+### Confusion Matrix
 
-The recall improvement is particularly important for AML - catching 99.6% vs 98.8% of illicit transactions means 27 fewer criminals escaping detection per 6,518 illicit transactions.
+|  | Predicted Licit | Predicted Illicit |
+|:--|:----------------|:------------------|
+| **Actual Licit** | 85 | 84 |
+| **Actual Illicit** | 27 | 6,491 |
 
-### Per-Timestep Analysis
-
-| Timestep | Illicit Count | Precision | Recall | F1 |
-|----------|--------------|-----------|--------|-----|
-| 43 | 78 | 0.981 | 0.994 | 0.987 |
-| 44 | 65 | 0.969 | 0.997 | 0.983 |
-| 45 | 72 | 0.978 | 0.996 | 0.987 |
-| 46 | 81 | 0.971 | 0.995 | 0.983 |
-| 47 | 58 | 0.982 | 0.999 | 0.990 |
-| 48 | 63 | 0.975 | 0.997 | 0.986 |
-| 49 | 50 | 0.968 | 0.998 | 0.983 |
-
-Performance is consistent across timesteps, demonstrating temporal generalization.
+- **True Positives**: 6,491 (illicit correctly caught)
+- **False Negatives**: 27 (illicit missed - only 0.4%)
 
 ---
 
@@ -665,101 +527,68 @@ Performance is consistent across timesteps, demonstrating temporal generalizatio
 ### Launch
 
 ```bash
-.\venv\Scripts\activate
 streamlit run chronos/dashboard/Home.py
 ```
 
-Open <http://localhost:8501>
-
-### Pages (15)
+### Pages (15 Total)
 
 | Page | Description |
-|------|-------------|
-| **ℹ️ About** | Project context, limitations, honest assessment |
-| **🏠 Home** | Key metrics overview |
-| **📊 Dataset Explorer** | Class distribution, graph topology, temporal patterns |
-| **🧮 Math Foundations** | GAT attention, focal loss, temporal encoding explained |
-| **📈 Training Results** | Metrics from trained checkpoint |
-| **🔍 Explanations** | Feature importance from model weights |
-| **⚡ Live Demo** | Interactive transaction analysis |
-| **🕸️ Graph Visualization** | Subgraph with node coloring by class |
-| **🔮 Embeddings** | t-SNE of learned representations |
-| **📉 Feature Analysis** | Feature distributions by class |
-| **🏗️ Architecture** | Model structure documentation |
-| **🔗 Hub Analysis** | High-degree nodes and their labels |
-| **📅 Temporal Analysis** | Class distribution over timesteps |
-| **🏘️ Communities** | 858 detected transaction clusters |
-| **🧮 Model Weights** | Layer-by-layer weight statistics |
-| **🔴 Illicit Subgraph** | Neighborhood around illicit transactions |
-
-All data from actual Elliptic dataset and trained model.
+|:-----|:------------|
+| About | Project context and limitations |
+| Home | Key metrics overview |
+| Dataset Explorer | Class distribution, graph topology |
+| Math Foundations | GAT, focal loss equations |
+| Training Results | Metrics from checkpoint |
+| Explanations | Feature importance |
+| Live Demo | Interactive analysis |
+| Graph Visualization | Subgraph rendering |
+| Embeddings | t-SNE visualization |
+| Feature Analysis | Class differences |
+| Architecture | Model documentation |
+| Hub Analysis | High-degree nodes |
+| Temporal Analysis | Time patterns |
+| Communities | 858 detected clusters |
+| Model Weights | Layer statistics |
+| Illicit Subgraph | Neighborhood around illicit nodes |
 
 ---
 
 ## Installation
 
-### Requirements
-
-- Python 3.10+
-- CUDA 12.1 (for GPU, optional)
-- 16GB RAM minimum, 32GB recommended
-
-### Setup
-
 ```bash
-git clone https://github.com/your-username/chronos.git
-cd chronos
+# Clone
+git clone https://github.com/shaunak-batra/Cryptocurrency-High-Risk-Oservation-Novelty-detection-Operational-System.git
+cd Cryptocurrency-High-Risk-Oservation-Novelty-detection-Operational-System
 
+# Virtual environment
 python -m venv venv
 .\venv\Scripts\activate  # Windows
 source venv/bin/activate  # Linux/Mac
 
-# PyTorch with CUDA
-pip install torch==2.1.0+cu121 --index-url https://download.pytorch.org/whl/cu121
+# Install dependencies
+pip install -r requirements.txt
 
-# PyTorch Geometric
-pip install torch-geometric
-pip install torch-scatter torch-sparse -f https://data.pyg.org/whl/torch-2.1.0+cu121.html
-
-# Other dependencies
-pip install streamlit plotly pandas numpy scikit-learn networkx lightgbm imbalanced-learn shap
-```
-
-### Dataset Download
-
-```bash
-# Requires Kaggle API
-kaggle datasets download -d ellipticco/elliptic-data-set
-unzip elliptic-data-set.zip -d data/raw/elliptic/raw
+# Download Elliptic dataset from Kaggle
+# Place in data/raw/elliptic/raw/
 ```
 
 ---
 
 ## Usage
 
-### Dashboard
-
 ```bash
+# Dashboard
 streamlit run chronos/dashboard/Home.py
-```
 
-### Training
-
-```bash
+# Training
 python scripts/train_chronos.py
-```
 
-### Generate Statistics
-
-```bash
+# Generate statistics
 python scripts/generate_real_stats.py
 python scripts/generate_real_analysis.py
 python scripts/generate_advanced_analysis.py
-```
 
-### Baselines
-
-```bash
+# Baselines
 python scripts/compare_baselines.py
 ```
 
@@ -767,15 +596,15 @@ python scripts/compare_baselines.py
 
 ## Project Timeline
 
-| Month | Focus | Key Outcomes |
-|-------|-------|--------------|
-| **June 2025** | Literature review, problem formulation | Identified GAT + temporal as approach |
-| **July 2025** | Dataset exploration, baselines | LightGBM baseline: F1 = 0.9799 |
-| **August 2025** | GCN/GAT experiments, focal loss | Discovered SMOTE incompatibility, focal loss breakthrough |
-| **September 2025** | Temporal encoding, tuning | Added temporal branch, F1 = 0.92 |
-| **October 2025** | Feature engineering, ablations | Engineered features boost: F1 = 0.9853 |
-| **November 2025** | Dashboard development | 15 interactive pages |
-| **December 2025** | Documentation, final polish | This README, final evaluation |
+| Month | Focus |
+|:------|:------|
+| June 2025 | Literature review, problem formulation |
+| July 2025 | Dataset exploration, baseline implementation |
+| August 2025 | GAT implementation, class imbalance solutions |
+| September 2025 | Temporal encoding, hyperparameter tuning |
+| October 2025 | Feature engineering, ablation studies |
+| November 2025 | Dashboard development |
+| December 2025 | Final evaluation, documentation |
 
 ---
 
@@ -783,26 +612,25 @@ python scripts/compare_baselines.py
 
 ### What Worked
 
-1. **Focal loss for class imbalance** - Better than resampling for graph data
-2. **Attention mechanisms** - Performance + explainability in one
-3. **Temporal splits** - Realistic evaluation, avoids leakage
-4. **Feature engineering** - Graph topology features highly predictive
-5. **Simple temporal encoding** - MLP sufficient, complexity not needed
+- **Focal loss** for class imbalance - Better than resampling for graph data
+- **Attention mechanisms** - Performance + explainability
+- **Temporal splits** - Realistic evaluation
+- **Feature engineering** - Graph topology features highly predictive
+- **Simple temporal encoding** - MLP sufficient
 
-### What Failed
+### What Didn't Work
 
-1. **SMOTE-ENN on graph data** - Can't generate edges for synthetic nodes
-2. **Deep GNNs (4+ layers)** - Over-smoothing degrades performance
-3. **Complex temporal encoders** - GRU/LSTM no better than MLP
-4. **Random splits** - Inflated metrics, doesn't reflect production
+- **SMOTE-ENN on graphs** - Can't generate edges for synthetic nodes
+- **Deep GNNs (4+ layers)** - Over-smoothing
+- **Complex temporal encoders** - GRU/LSTM no better than MLP
+- **Random splits** - Inflated metrics
 
-### Honest Limitations
+### Limitations
 
-- Single dataset (Elliptic only)
+- Single dataset evaluation (Elliptic only)
 - No adversarial robustness testing
-- Counterfactual generation not fully implemented
+- Counterfactual explanations not fully implemented
 - Research prototype, not production-tested
-- Model checkpoint architecture mismatch in some scripts
 
 ---
 
@@ -812,14 +640,13 @@ python scripts/compare_baselines.py
 CHRONOS/
 ├── chronos/
 │   ├── models/chronos_net.py      # Main architecture
-│   ├── models/components.py       # FocalLoss, etc.
 │   ├── data/loader.py             # Dataset loading
 │   └── dashboard/                 # 15 Streamlit pages
 ├── scripts/
 │   ├── train_chronos.py           # Training
-│   ├── compare_baselines.py       # LightGBM, GraphSAGE
-│   └── generate_*.py              # Statistics generation
-├── checkpoints/best_model.pt      # Trained model (~4MB)
+│   ├── compare_baselines.py       # Baselines
+│   └── generate_*.py              # Statistics
+├── checkpoints/best_model.pt      # Trained model
 ├── results/real_data/             # Computed statistics
 └── data/raw/elliptic/raw/         # Dataset (not in git)
 ```
@@ -828,62 +655,19 @@ CHRONOS/
 
 ## References
 
-### Core Papers
+1. **Weber et al.** (2019). "Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics." *KDD Workshop*.
 
-1. **Weber, M., Domeniconi, G., Chen, J., Weidele, D.K.I., Bellei, C., Robinson, T., & Leiserson, C.E.** (2019). "Anti-Money Laundering in Bitcoin: Experimenting with Graph Convolutional Networks for Financial Forensics." *KDD Workshop on Anomaly Detection in Finance (KDD-ADF)*.
-   - The original Elliptic dataset paper. Established baselines with Random Forest and logistic regression.
+2. **Veličković et al.** (2018). "Graph Attention Networks." *ICLR*.
 
-2. **Veličković, P., Cucurull, G., Casanova, A., Romero, A., Liò, P., & Bengio, Y.** (2018). "Graph Attention Networks." *International Conference on Learning Representations (ICLR)*.
-   - Introduced the GAT architecture with multi-head attention over graph neighborhoods.
+3. **Lin et al.** (2017). "Focal Loss for Dense Object Detection." *ICCV*.
 
-### Class Imbalance
+4. **Chawla et al.** (2002). "SMOTE: Synthetic Minority Over-sampling Technique." *JAIR*.
 
-1. **Lin, T.Y., Goyal, P., Girshick, R., He, K., & Dollár, P.** (2017). "Focal Loss for Dense Object Detection." *IEEE International Conference on Computer Vision (ICCV)*.
-   - Introduced focal loss for addressing class imbalance by down-weighting easy examples.
+5. **Lundberg & Lee** (2017). "A Unified Approach to Interpreting Model Predictions." *NeurIPS*.
 
-2. **Chawla, N.V., Bowyer, K.W., Hall, L.O., & Kegelmeyer, W.P.** (2002). "SMOTE: Synthetic Minority Over-sampling Technique." *Journal of Artificial Intelligence Research (JAIR)*, 16, 321-357.
-   - The foundational SMOTE algorithm for oversampling minority classes.
+6. **Kipf & Welling** (2017). "Semi-Supervised Classification with Graph Convolutional Networks." *ICLR*.
 
-3. **Batista, G.E., Prati, R.C., & Monard, M.C.** (2004). "A Study of the Behavior of Several Methods for Balancing Machine Learning Training Data." *ACM SIGKDD Explorations Newsletter*, 6(1), 20-29.
-   - Analysis of SMOTE combined with ENN (Edited Nearest Neighbors) for improved resampling.
-
-### Explainability
-
-1. **Lundberg, S.M. & Lee, S.I.** (2017). "A Unified Approach to Interpreting Model Predictions." *Advances in Neural Information Processing Systems (NeurIPS)*.
-   - Introduced SHAP values for model-agnostic feature attribution.
-
-2. **Ribeiro, M.T., Singh, S., & Guestrin, C.** (2016). "Why Should I Trust You?: Explaining the Predictions of Any Classifier." *ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*.
-   - LIME (Local Interpretable Model-agnostic Explanations).
-
-### Graph Neural Networks
-
-1. **Kipf, T.N. & Welling, M.** (2017). "Semi-Supervised Classification with Graph Convolutional Networks." *International Conference on Learning Representations (ICLR)*.
-   - The foundational GCN paper.
-
-2. **Hamilton, W.L., Ying, R., & Leskovec, J.** (2017). "Inductive Representation Learning on Large Graphs." *Advances in Neural Information Processing Systems (NeurIPS)*.
-   - GraphSAGE for inductive learning on graphs.
-
-3. **Xu, K., Hu, W., Leskovec, J., & Jegelka, S.** (2019). "How Powerful are Graph Neural Networks?" *International Conference on Learning Representations (ICLR)*.
-    - Analysis of GNN expressiveness and the Graph Isomorphism Network (GIN).
-
-### Financial Crime Detection
-
-1. **Alarab, I., Prakoonwit, S., & Nacer, M.I.** (2020). "Competence of Graph Convolutional Networks for Anti-Money Laundering in Bitcoin Blockchain." *ACM International Conference on Multimedia Asia*.
-    - Applied GCN variants to the Elliptic dataset.
-
-2. **Pareja, A., Domeniconi, G., Chen, J., Ma, T., Suzumura, T., Kanezashi, H., Kaler, T., Schardl, T., & Leiserson, C.** (2020). "EvolveGCN: Evolving Graph Convolutional Networks for Dynamic Graphs." *AAAI Conference on Artificial Intelligence*.
-    - Temporal GNN approach for evolving graphs.
-
-3. **Lo, W.W., Kulatilleke, G., Sarhan, M., Layeghy, S., & Portmann, M.** (2023). "Inspection-L: Practical GNN-based Money Laundering Detection System." *arXiv preprint arXiv:2311.11537*.
-    - Recent practical AML system using GNNs.
-
-### Regulatory Context
-
-1. **European Commission** (2021). "Proposal for a Regulation Laying Down Harmonised Rules on Artificial Intelligence (AI Act)." *COM(2021) 206 final*.
-    - Article 13 requires transparency and explainability for high-risk AI systems.
-
-2. **Financial Action Task Force (FATF)** (2021). "Updated Guidance for a Risk-Based Approach to Virtual Assets and Virtual Asset Service Providers."
-    - Regulatory framework for cryptocurrency AML compliance.
+7. **Hamilton et al.** (2017). "Inductive Representation Learning on Large Graphs." *NeurIPS*.
 
 ---
 
@@ -894,4 +678,3 @@ MIT License
 ---
 
 *December 2025*
-
