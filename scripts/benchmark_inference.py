@@ -107,30 +107,25 @@ def main():
     
     if not os.path.exists(checkpoint_path):
         print("Checkpoint not found. Using random model for benchmark.")
-        # Create simple test model
         import torch.nn as nn
         class SimpleModel(nn.Module):
             def __init__(self):
                 super().__init__()
-                self.fc = nn.Linear(165, 2)
+                self.fc = nn.Linear(235, 2)
             def forward(self, x, edge_index):
                 return self.fc(x)
         model = SimpleModel().to(device)
-        x = torch.randn(10000, 165)
+        x = torch.randn(10000, 235)
         edge_index = torch.randint(0, 10000, (2, 50000))
     else:
         from chronos.models.inference import load_inference_model
         model = load_inference_model(checkpoint_path, device=device)
         
-        # Load sample data
-        data_path = 'data/raw/elliptic/processed/data_full.pt'
-        if os.path.exists(data_path):
-            data = torch.load(data_path, map_location='cpu', weights_only=False)
-            x = data.x
-            edge_index = data.edge_index
-        else:
-            x = torch.randn(10000, 235)
-            edge_index = torch.randint(0, 10000, (2, 50000))
+        # Use synthetic data with correct dimensions for benchmarking
+        # (Loading and processing real data is too slow for benchmark)
+        print("Using synthetic data (235 features) for latency testing...")
+        x = torch.randn(10000, 235)  # 10k nodes with 235 features
+        edge_index = torch.randint(0, 10000, (2, 50000))  # 50k edges
     
     print(f"Nodes: {x.size(0)}, Features: {x.size(1)}")
     print(f"Edges: {edge_index.size(1)}")
