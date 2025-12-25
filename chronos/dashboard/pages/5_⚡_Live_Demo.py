@@ -152,7 +152,7 @@ with col1:
                             color_discrete_map={'Flagged': '#FF6B6B', 'Clear': '#4ECDC4'},
                             hole=0.4)
                 fig.update_layout(template='plotly_dark', height=250, showlegend=True)
-                st.plotly_chart(fig, width='stretch')
+                st.plotly_chart(fig, use_container_width=True, key=f"pie_live_{i}")
             
             time.sleep(1.0 / speed)
         
@@ -183,7 +183,7 @@ if not st.session_state.running and st.session_state.transactions:
                         color_discrete_map={'Flagged': '#FF6B6B', 'Clear': '#4ECDC4'},
                         hole=0.4)
             fig.update_layout(template='plotly_dark', height=250, showlegend=True)
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True, key="pie_static")
 
 st.markdown("---")
 
