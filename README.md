@@ -637,9 +637,7 @@ python scripts/compare_baselines.py
 ### Limitations
 
 - Single dataset evaluation (Elliptic only)
-- No adversarial robustness testing
-- Counterfactual explanations not fully implemented
-- Research prototype, not production-tested
+- Research prototype, not yet battle-tested in production
 
 ---
 
@@ -648,16 +646,24 @@ python scripts/compare_baselines.py
 ```
 CHRONOS/
 ├── chronos/
-│   ├── models/chronos_net.py      # Main architecture
+│   ├── models/
+│   │   ├── chronos_net.py         # Main GNN architecture
+│   │   ├── inference.py           # Inference-optimized model
+│   │   └── graph_baselines.py     # Node2Vec, DeepWalk
 │   ├── data/loader.py             # Dataset loading
-│   └── dashboard/                 # 15 Streamlit pages
+│   ├── evaluation/adversarial.py  # Robustness testing
+│   ├── explainability/            # Counterfactual explanations
+│   ├── api/main.py                # FastAPI with Swagger
+│   └── dashboard/                 # 19 Streamlit pages
 ├── scripts/
 │   ├── train_chronos.py           # Training
-│   ├── compare_baselines.py       # Baselines
-│   └── generate_*.py              # Statistics
+│   ├── benchmark_inference.py     # Latency testing
+│   └── run_baselines.py           # Baseline comparison
+├── tests/unit/                    # 52 unit tests
+├── notebooks/                     # Colab notebooks
 ├── checkpoints/best_model.pt      # Trained model
-├── results/real_data/             # Computed statistics
-└── data/raw/elliptic/raw/         # Dataset (not in git)
+├── results/                       # Predictions, benchmarks
+└── data/raw/elliptic/             # Dataset (not in git)
 ```
 
 ---
