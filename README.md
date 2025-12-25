@@ -513,15 +513,16 @@ early_stopping:
 | GraphSAGE | 0.9501 | 0.9398 | 0.9607 | Mean aggregation |
 | **CHRONOS-Net** | **0.9853** | **0.9749** | **0.9959** | GAT + temporal |
 
-### Confusion Matrix
+### Confusion Matrix (Real Colab Inference)
 
 |  | Predicted Licit | Predicted Illicit |
 |:--|:----------------|:------------------|
-| **Actual Licit** | 85 | 84 |
-| **Actual Illicit** | 27 | 6,491 |
+| **Actual Licit** | 2 | 167 |
+| **Actual Illicit** | 26 | 6,492 |
 
-- **True Positives**: 6,491 (illicit correctly caught)
-- **False Negatives**: 27 (illicit missed - only 0.4%)
+- **True Positives**: 6,492 (illicit correctly caught)
+- **False Negatives**: 26 (illicit missed - only 0.4%)
+- **Note**: Test set is heavily imbalanced with very few licit samples
 
 ---
 
@@ -533,7 +534,7 @@ early_stopping:
 streamlit run chronos/dashboard/Home.py
 ```
 
-### Pages (15 Total)
+### Pages (18 Total)
 
 | Page | Description |
 |:-----|:------------|
@@ -552,7 +553,9 @@ streamlit run chronos/dashboard/Home.py
 | Temporal Analysis | Time patterns |
 | Communities | 858 detected clusters |
 | Model Weights | Layer statistics |
-| Illicit Subgraph | Neighborhood around illicit nodes |
+| Error Analysis | Misclassification breakdown |
+| Model Comparison | CHRONOS vs baselines |
+| Training Curves | Loss and F1 over epochs |
 
 ---
 
@@ -677,5 +680,3 @@ CHRONOS/
 ## License
 
 MIT License
-
-
