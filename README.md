@@ -7,6 +7,9 @@ A graph neural network system for detecting money laundering in Bitcoin transact
 [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 [![PyTorch 2.1](https://img.shields.io/badge/PyTorch-2.1-red.svg)](https://pytorch.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Streamlit App](https://img.shields.io/badge/Streamlit-Live_Demo-FF4B4B.svg)](https://chronos-aml.streamlit.app)
+
+**🚀 [Live Demo: chronos-aml.streamlit.app](https://chronos-aml.streamlit.app)**
 
 ---
 
