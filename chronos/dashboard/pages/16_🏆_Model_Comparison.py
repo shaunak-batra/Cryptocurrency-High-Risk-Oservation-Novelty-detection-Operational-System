@@ -141,12 +141,8 @@ st.markdown("---")
 # Detailed Table
 st.subheader("📋 Detailed Comparison")
 
-styled_df = df.style.background_gradient(
-    subset=['F1', 'Precision', 'Recall', 'AUC-ROC'],
-    cmap='RdYlGn',
-    vmin=0.5, vmax=1.0
-)
-st.dataframe(styled_df, use_container_width=True)
+# Use regular dataframe without matplotlib-dependent styling
+st.dataframe(df, use_container_width=True)
 
 st.markdown("---")
 
