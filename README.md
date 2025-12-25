@@ -678,6 +678,4 @@ CHRONOS/
 
 MIT License
 
----
 
-*December 2025*
