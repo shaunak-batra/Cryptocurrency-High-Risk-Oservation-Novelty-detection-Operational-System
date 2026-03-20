@@ -566,8 +566,8 @@ streamlit run chronos/dashboard/Home.py
 
 ```bash
 # Clone
-git clone https://github.com/shaunak-batra/Cryptocurrency-High-Risk-Oservation-Novelty-detection-Operational-System.git
-cd Cryptocurrency-High-Risk-Oservation-Novelty-detection-Operational-System
+git clone https://github.com/shaunak-batra/Cryptocurrency-High-Risk-Observation-Novelty-detection-Operational-System.git
+cd Cryptocurrency-High-Risk-Observation-Novelty-detection-Operational-System
 
 # Virtual environment
 python -m venv venv
